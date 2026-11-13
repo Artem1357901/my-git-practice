@@ -7,9 +7,20 @@
     <style>
         html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
         canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+        #score { position: fixed;
+        left: 20px; top: 20px;
+        z-index: 2;
+        padding: 12px 18px;
+        border-radius: 12px;
+        background: white;
+        color: #25345e;
+        font: bold 22px Arial, sans-serif;
+        box-shadow: 0 5px 20px #0002;
+    }
     </style>
 </head>
 <body>
+    <div id="score">Шары: 0/5</div>
     <canvas id="screen"></canvas>
     <script src="./babylon.js"></script>
     <script src="./game.js"></script>
