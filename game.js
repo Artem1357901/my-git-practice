@@ -2,64 +2,120 @@ const canvas = document.getElementById("screen");
 const engine = new BABYLON.Engine(canvas, true);
 const scene = new BABYLON.Scene(engine);
 scene.clearColor = new BABYLON.Color4(0.70, 0.87, 1.00, 1);
+const camera = new BABYLON.ArcRotateCamera(
+ "camera", -Math.PI / 2, 0.85, 20,
+ new BABYLON.Vector3(0, 0, 0), scene);
 
-const camera = new BABYLON.ArcRotateCamera("camera",
-    -Math.PI / 2, Math.PI / 3, 11, new BABYLON.Vector3(0, 0, 0), scene);
 camera.attachControl(canvas, true);
+new BABYLON.HemisphericLight(
+ "sun", new BABYLON.Vector3(0, 1, 0), scene);
 
-new BABYLON.HemisphericLight( "sun", new BABYLON.Vector3(0, 1, 0), scene);
-
-const ground = BABYLON.MeshBuilder.CreateGround( "ground", { width: 12, height: 12 },
-    scene );
+const ground = BABYLON.MeshBuilder.CreateGround(
+ "ground", { width: 12, height: 12 }, scene);
 
 const grass = new BABYLON.StandardMaterial("grass", scene);
-grass.diffuseColor = new BABYLON.Color3(0.20, 0.55, 1.00);
+grass.diffuseColor = new BABYLON.Color3(0.25, 0.72, 0.42);
 ground.material = grass;
+const cube = BABYLON.MeshBuilder.CreateBox(
+ "cube", { size: 1 }, scene);
 
-const cube = BABYLON.MeshBuilder.CreateBox( "cube", {size: 2.0 }, scene);
-cube.position.y = 1.0;
+cube.position.set(-4.4, 0.5, -4.4);
 const orange = new BABYLON.StandardMaterial("orange", scene);
-orange.diffuseColor = new BABYLON.Color3(1.00, 0.44, 0.12);
+orange.diffuseColor = new BABYLON.Color3(1, 0.44, 0.12);
 cube.material = orange;
 
-const ball = BABYLON.MeshBuilder.CreateSphere( "ball", {diameter: 1 }, scene);
-ball.position.set(2.4, 0.5, 1.2);
-const pink = new BABYLON.StandardMaterial("pink", scene);
-pink.diffuseColor = new BABYLON.Color3(0.97, 0.27, 0.65);
-ball.material = pink;
+const wallColor = new BABYLON.StandardMaterial("wallColor", scene);
+wallColor.diffuseColor = new BABYLON.Color3(0.51, 0.36, 0.86);
+const walls = [];
+function addWall(name, x, z, width, depth) {
+ const wall = BABYLON.MeshBuilder.CreateBox(
+ name, { width, height: 1.6, depth }, scene);
+
+ wall.position.set(x, 0.8, z);
+ wall.material = wallColor;
+ walls.push(wall);}
+
+addWall("north", 0, 5.8, 12, 0.4);
+addWall("south", 0, -5.8, 12, 0.4);
+addWall("west", -5.8, 0, 0.4, 12);
+addWall("east", 5.8, 0, 0.4, 12);
+addWall("wallA", -1.4, -2.3, 0.5, 7.2);
+addWall("wallB", 1.6, 2.3, 0.5, 7.2);
+
+const star = BABYLON.MeshBuilder.CreateSphere(
+ "star", { diameter: 0.75 }, scene);
+
+const gold = new BABYLON.StandardMaterial("gold", scene);
+gold.diffuseColor = new BABYLON.Color3(1, 0.81, 0.10);
+gold.emissiveColor = new BABYLON.Color3(0.50, 0.28, 0.01);
+star.material = gold;
+const starPlaces = [
+ [-4.1, 3.7], [0, -3.7], [4, 0]];
+
+star.position.set(starPlaces[0][0], 0.55, starPlaces[0][1]);
+const exit = BABYLON.MeshBuilder.CreateBox(
+ "exit", { width: 1.5, height: 0.12, depth: 1.5 }, scene);
+
+exit.position.set(4.2, 0.06, 4.2);
+const green = new BABYLON.StandardMaterial("green", scene);
+green.diffuseColor = new BABYLON.Color3(0.06, 0.87, 0.67);
+green.emissiveColor = new BABYLON.Color3(0.01, 0.20, 0.12);
+exit.material = green;
 
 const keys = {};
-window.addEventListener("keydown", (event) => { keys[event.code] = true;});
-window.addEventListener("keyup", (event) => { keys[event.code] = false;});
+window.addEventListener("keydown", (event) => {
+ keys[event.code] = true;});
 
-let score = 0;
+window.addEventListener("keyup", (event) => {
+ keys[event.code] = false;});
+
 const scoreBox = document.getElementById("score");
-const spots = [ [2.4, 1.2], [-3, -2], [3, -3], [-2, 3], [2, 3] ];
+const hint = document.getElementById("hint");
+const message = document.getElementById("message");
+let score = 0;
+let won = false;
 
-engine.runRenderLoop(() => { const speed = 10 * engine.getDeltaTime() / 1000;
-    if (keys["KeyW"]) cube.position.z += speed;
-    if (keys["KeyS"]) cube.position.z -= speed;
-    if (keys["KeyA"]) cube.position.x -= speed;
-    if (keys["KeyD"]) cube.position.x += speed;
-    const edge = 5.2;
+function hitsWall() {
+ for (const wall of walls) {
+ if (cube.intersectsMesh(wall, false)) return true;
+ }
+ return false;}
 
-    cube.position.x = Math.max(-edge, Math.min(edge, cube.position.x));
-    cube.position.z = Math.max(-edge, Math.min(edge, cube.position.z));
-    scene.render();
+ engine.runRenderLoop(() => {
+    if (!won) {
+        const step = 4 * engine.getDeltaTime() / 1000;
+        const oldX = cube.position.x;
+        if (keys["KeyA"]) cube.position.x -= step;
+        if (keys["KeyD"]) cube.position.x += step;
+        if (hitsWall()) cube.position.x = oldX;
+        const oldZ = cube.position.z;
+        if (keys["KeyW"]) cube.position.z += step;
+        if (keys["KeyS"]) cube.position.z -= step;
+        if (hitsWall()) cube.position.z = oldZ;
+ 
+        const dx = cube.position.x - star.position.x;
+        const dz = cube.position.z - star.position.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        if (score < 3 && distance < 0.95) {
+            score += 1;
+            scoreBox.textContent = "Звёзды: " + score + "/3";
+            if (score === 3) {
+                star.setEnabled(false);
+                hint.textContent = "Все звёзды собраны! Иди к зелёному выходу.";}
+            else {
+                star.position.set(starPlaces[score][0], 0.55,
+                starPlaces[score][1]); }}
 
-    const dx = cube.position.x - ball.position.x;
-    const dz = cube.position.z - ball.position.z;
-    const distance = Math.sqrt(dx * dx + dz * dz);
-    if (score < 5 && distance < 1.3) { score += 1;
-        if (score === 5) { scoreBox.textContent = "Победа! 5/5";
-            ball.setEnabled(false);}
-        else { scoreBox.textContent = "Шары: " + score + "/5";
-            const next = spots[score];
-            ball.position.x = next[0];
-            ball.position.z = next[1];
-        }
-    }
- });
+        const ex = cube.position.x - exit.position.x;
+        const ez = cube.position.z - exit.position.z;
+        if (score === 3 && Math.sqrt(ex * ex + ez * ez) < 1.15) {
+            won = true;
+            message.style.display = "block";
+            hint.textContent = "Ты нашёл выход из лабиринта!";}}
 
-window.addEventListener("relize", () => engine.relize());
+        scene.render();});
+
+window.addEventListener("resize", () => engine.resize());
+ 
+ 
 
